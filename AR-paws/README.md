@@ -1,29 +1,42 @@
 # AR-paws (DS 579)
 
-Unity **2022.3 LTS** + **AR Foundation**을 권장합니다. 이 폴더는 **재사용 가능한 스크립트**를 담고 있으며, Unity 프로젝트 전체가 아닙니다.
+Use Unity **2022.3 LTS** with **AR Foundation**. This folder contains **reusable scripts** only, not a complete Unity project.
 
-## 프로젝트에 넣는 방법
+**Character direction**: The team agreed on a **biped, humanoid-rig** companion. Free animations (e.g. Mixamo) target humanoid skeletons, so a **bear**-style character fits the pipeline well. Scripts work regardless of species or mesh.
 
-1. Unity Hub에서 **3D (Built-in)** 또는 **3D (URP)** 프로젝트를 새로 만듭니다.
-2. **Window → Package Manager**에서 다음 패키지를 추가합니다 (버전은 에디터가 제안하는 **5.0.x** 계열을 사용해도 됩니다).
+## How to add this to your project
+
+1. Create a new **3D (Built-in)** or **3D (URP)** project in Unity Hub.
+2. In **Window → Package Manager**, add (your editor may suggest **5.0.x** family versions):
    - `AR Foundation`
    - `Google ARCore XR Plugin` (Android)
    - `Apple ARKit XR Plugin` (iOS)
-3. 공식 **AR Foundation 샘플** 또는 문서의 “Session + Plane” 구성을 참고해, 씬에 **XR Origin**(또는 환경에 맞는 세션 루트), **AR Session**, **AR Plane Manager**, **AR Raycast Manager**를 둡니다.
-4. 이 저장소의 `Assets/ARPaws` 폴더를 통째로 프로젝트 `Assets` 아래로 복사합니다.
-5. 빈 GameObject에 `PetNeedsController`를 추가합니다. Canvas 아래 슬라이더가 있다면 `PetNeedsUIBindings`로 연결합니다.
-6. **XR Origin**(또는 Raycast Manager가 붙은 오브젝트)에 `ARPetsSurfacePlacer`를 추가하고, **Pet 프리팹** 필드에 임시 3D 모델을 넣습니다.
+3. Follow official **AR Foundation** samples or docs for a “Session + Plane” setup: place **XR Origin** (or your session root), **AR Session**, **AR Plane Manager**, and **AR Raycast Manager** in the scene.
+4. Copy this repo’s `Assets/ARPaws` folder into your project’s `Assets` folder.
+5. Add `PetNeedsController` to an empty GameObject. If you have Canvas sliders, wire them with `PetNeedsUIBindings`.
+6. Add `ARPetsSurfacePlacer` to the **XR Origin** (or the object that has **AR Raycast Manager**) and assign a **pet prefab** (temporary mesh is fine).
+7. On the pet prefab, add `PetCompanionBrain` and connect:
+   - `needs` → the `PetNeedsController` in scene
+   - `animator` → pet Animator
+   - optional `bedSpot`, `foodSpot`, `playSpot` (see next step)
+8. Place optional world markers with `PetDesignatedSpot` (bed/food/play). These become target points for AI movement.
+9. Add `PetInteractionTarget` to toys/food/brush props and call `Interact()` from your hand/collider event pipeline.
+10. Optional quick test path: add `PetScreenTapInteractor` to a scene object and click/tap colliders to trigger interaction actions.
 
-## 스크립트 요약
+## Script overview
 
-| 스크립트 | 역할 |
-|----------|------|
-| `PetNeedsController` | 배고픔·청결·기분·놀이 감쇠 및 먹이/쓰다듬기/미니게임 보정 |
-| `PetNeedsPersistence` | `Application.persistentDataPath`에 JSON 저장 |
-| `PetNeedsUIBindings` | UI 슬라이더·기분 텍스트 갱신 |
-| `PetInteractionPanel` | 버튼으로 상호작용 호출 |
-| `ARPetsSurfacePlacer` | 평면 첫 탭에 펫 스폰(에디터에서는 마우스 클릭) |
+| Script | Role |
+|--------|------|
+| `PetNeedsController` | Hunger, cleanliness, happiness, playfulness decay; feed / clean / pet / mini-game boosts |
+| `PetNeedsPersistence` | Save/load JSON under `Application.persistentDataPath` + offline time decay on next launch |
+| `PetNeedsUIBindings` | Updates sliders and mood label |
+| `PetInteractionPanel` | UI buttons call interaction methods |
+| `ARPetsSurfacePlacer` | First tap on a plane spawns the pet (mouse click in Editor) |
+| `PetCompanionBrain` | Mood/interaction-driven roaming, spot targeting, optional Animator triggers |
+| `PetDesignatedSpot` | Optional world anchors (bed, food, play) used by companion behavior |
+| `PetInteractionTarget` | Interactable world props that forward Feed/Clean/Pet/Play actions |
+| `PetScreenTapInteractor` | Touch/mouse raycast bridge that invokes nearby `PetInteractionTarget` |
 
-## 라이선스
+## Licensing
 
-과제용 프로토타입으로 제출 전, 서드파티 에셋(Sketchfab 등)의 **재배포 가능 여부**를 팀에서 확인하세요.
+Before submitting the course prototype, confirm **redistribution** rules for third-party assets (Sketchfab, Asset Store, etc.) with your team.

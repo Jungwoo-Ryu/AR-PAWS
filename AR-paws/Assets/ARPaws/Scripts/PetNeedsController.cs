@@ -3,6 +3,14 @@ using UnityEngine;
 
 namespace ARPaws.Core
 {
+    public enum PetInteractionType
+    {
+        Feed,
+        Clean,
+        Pet,
+        Play
+    }
+
     public enum PetMood
     {
         Content,
@@ -37,11 +45,17 @@ namespace ARPaws.Core
         public PetMood CurrentMood { get; private set; } = PetMood.Content;
 
         public event Action<PetNeedStats> OnStatsChanged;
+        public event Action<PetMood> OnMoodChanged;
+        public event Action<PetInteractionType> OnInteraction;
 
         void Awake()
         {
-            if (PetNeedsPersistence.TryLoad(out var loaded))
+            if (PetNeedsPersistence.TryLoad(out var loaded, out var elapsedSeconds))
+            {
                 _stats = loaded;
+                if (elapsedSeconds > 0f)
+                    ApplyDecay(elapsedSeconds);
+            }
             else
                 _stats = PetNeedStats.CreateDefault();
             RecalculateMood();
@@ -52,16 +66,14 @@ namespace ARPaws.Core
         void Update()
         {
             var dt = Time.unscaledDeltaTime;
-            _stats.hunger = Mathf.Clamp01(_stats.hunger - hungerDecay * dt);
-            _stats.cleanliness = Mathf.Clamp01(_stats.cleanliness - cleanlinessDecay * dt);
-            _stats.happiness = Mathf.Clamp01(_stats.happiness - happinessDecay * dt);
-            _stats.playfulness = Mathf.Clamp01(_stats.playfulness - playfulnessDecay * dt);
-            RecalculateMood();
+            ApplyDecay(dt);
 
             _uiBroadcastTimer += dt;
             if (_uiBroadcastTimer >= 0.2f || CurrentMood != _lastMood)
             {
                 _uiBroadcastTimer = 0f;
+                if (CurrentMood != _lastMood)
+                    OnMoodChanged?.Invoke(CurrentMood);
                 _lastMood = CurrentMood;
                 OnStatsChanged?.Invoke(_stats);
             }
@@ -82,21 +94,21 @@ namespace ARPaws.Core
         {
             _stats.hunger = Mathf.Clamp01(_stats.hunger + feedAmount);
             _stats.happiness = Mathf.Clamp01(_stats.happiness + feedAmount * 0.15f);
-            BumpChanged();
+            BumpChanged(PetInteractionType.Feed);
         }
 
         public void Clean()
         {
             _stats.cleanliness = Mathf.Clamp01(_stats.cleanliness + cleanAmount);
             _stats.happiness = Mathf.Clamp01(_stats.happiness + 0.08f);
-            BumpChanged();
+            BumpChanged(PetInteractionType.Clean);
         }
 
         public void Petting()
         {
             _stats.happiness = Mathf.Clamp01(_stats.happiness + pettingAmount);
             _stats.playfulness = Mathf.Clamp01(_stats.playfulness + pettingAmount * 0.5f);
-            BumpChanged();
+            BumpChanged(PetInteractionType.Pet);
         }
 
         public void PlayMiniGame()
@@ -104,15 +116,28 @@ namespace ARPaws.Core
             _stats.playfulness = Mathf.Clamp01(_stats.playfulness + playAmount);
             _stats.happiness = Mathf.Clamp01(_stats.happiness + playAmount * 0.6f);
             _stats.hunger = Mathf.Clamp01(_stats.hunger - playAmount * 0.08f);
-            BumpChanged();
+            BumpChanged(PetInteractionType.Play);
         }
 
-        void BumpChanged()
+        void ApplyDecay(float deltaSeconds)
         {
+            _stats.hunger = Mathf.Clamp01(_stats.hunger - hungerDecay * deltaSeconds);
+            _stats.cleanliness = Mathf.Clamp01(_stats.cleanliness - cleanlinessDecay * deltaSeconds);
+            _stats.happiness = Mathf.Clamp01(_stats.happiness - happinessDecay * deltaSeconds);
+            _stats.playfulness = Mathf.Clamp01(_stats.playfulness - playfulnessDecay * deltaSeconds);
             RecalculateMood();
+        }
+
+        void BumpChanged(PetInteractionType interaction)
+        {
+            var prevMood = CurrentMood;
+            RecalculateMood();
+            if (CurrentMood != prevMood)
+                OnMoodChanged?.Invoke(CurrentMood);
             _lastMood = CurrentMood;
             _uiBroadcastTimer = 0f;
             OnStatsChanged?.Invoke(_stats);
+            OnInteraction?.Invoke(interaction);
             PetNeedsPersistence.Save(_stats);
         }
 
